@@ -4,7 +4,7 @@ from datetime import datetime
 from supabase import create_client, Client
 
 # 1. CONFIGURACIÓN DE BASE DE DATOS EN LA NUBE (SUPABASE)
-# (Asegúrate de poner aquí tus dos llaves reales de Supabase dentro de las comillas)
+# Vuelve a colocar tus llaves reales aquí dentro de las comillas:
 SUPABASE_URL = "https://ltlqsavejphagjbjteir.supabase.co"
 SUPABASE_KEY = "sb_publishable__pvOHbpHtPZoJekPn_sRBw_NKwLzZ_j"
 
@@ -78,14 +78,14 @@ with tab1:
                             efec = st.number_input("Efectivo TOTAL Real Recaudado ($)", min_value=0.0, value=float(row['efectivo_real_recaudado']))
                             
                             c_btn1, c_btn2 = st.columns(2)
-                            if c_btn1.st.form_submit_button("💾 Guardar Cierre"):
+                            if c_btn1.form_submit_button("💾 Guardar Cierre"):
                                 supabase.table("produccion_ventas").update({
                                     "cantidad_sobrante": sob, "efectivo_real_recaudado": efec
                                 }).eq("id", row['id']).execute()
                                 st.success("¡Guardado!")
                                 st.rerun()
                                 
-                            if c_btn2.st.form_submit_button("🗑️ BORRAR Registro"):
+                            if c_btn2.form_submit_button("🗑️ BORRAR Registro"):
                                 supabase.table("produccion_ventas").delete().eq("id", row['id']).execute()
                                 st.warning("Registro eliminado de la nube.")
                                 st.rerun()
