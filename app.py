@@ -122,7 +122,6 @@ with tab2:
             st.subheader("Tus Postres Registrados")
             st.dataframe(df_cat[['id', 'nombre_postre', 'precio_lista', 'Costo Total']], use_container_width=True)
             
-            # Formulario rápido para borrar postres del catálogo
             with st.form("form_borrar_cat"):
                 id_borrar = st.number_input("Escribe el ID del postre que deseas ELIMINAR:", min_value=1, step=1)
                 if st.form_submit_button("🗑️ Eliminar del Catálogo"):
@@ -160,7 +159,75 @@ with tab4:
             }).execute()
             st.success("Gasto operativo registrado.")
 
-# --- PESTAÑA 5: TABLERO FINANCIERO ---
+# --- PESTAÑA 5: TABLERO FINANCIERO CORREGIDO Y COMPLETO ---
 with tab5:
     st.header("Finanzas Líquidas en Tiempo Real")
-    st.info("Aquí verás tus utilidades netas reflejadas directamente desde tu servidor seguro en internet.")
+    
+    try:
+        res_v = supabase.table("produccion_ventas").select("*").execute()
+        df_v = pd.DataFrame(res_v.data)
+        res_c = supabase.table("catalogo_postres").select("*").execute()
+        df_c = pd.DataFrame(res_c.data)
+        res_g = supabase.table("gastos_operacion").select("*").execute()
+        df_g = pd.DataFrame(res_g.data)
+    except Exception:
+        df_v, df_c, df_g = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        
+    if df_v.empty or df_c.empty:
+        st.info("Registra tus datos de producción y catálogo para ver los balances matemáticos.")
+    else:
+        df_m = pd.merge(df_v, df_c, on='nombre_postre', how='left')
+        df_m['piezas_vendidas'] = df_m['cantidad_preparada'] - df_m['cantidad_sobrante']
+        df_m['costo_produccion_total'] = df_m['cantidad_preparada'] * (df_m['costo_insumos_promedio'].fillna(0) + df_m['costo_empaque_promedio'].fillna(0))
+        df_m['utilidad_bruta'] = df_m['efectivo_real_recaudado'] - df_m['costo_produccion_total']
+        
+        df_m['fecha'] = pd.to_datetime(df_m['fecha']).dt.date
+        fechas_disponibles = df_m['fecha'].unique()
+        
+        dia_sel = st.selectbox("Selecciona la fecha a evaluar:", fechas_disponibles, key="tab5_dia")
+        df_dia = df_m[df_m['fecha'] == dia_sel]
+        
+        if not df_g.empty:
+            df_g['fecha'] = pd.to_datetime(df_g['fecha']).dt.date
+            gastos_dia = df_g[(df_g['fecha'] == dia_sel) & (df_g['tipo_gasto'] != "Gasto Fijo Mensual Casa")]['monto'].sum()
+            gastos_mes = df_g[df_g['tipo_gasto'] == "Gasto Fijo Mensual Casa"]['monto'].sum()
+            costo_fijo_prorrateado = gastos_mes / 30 if gastos_mes > 0 else 25.0
+        else:
+            gastos_dia = 0.0
+            costo_fijo_prorrateado = 25.0
+            
+        gastos_totales_fijos_dia = gastos_dia + costo_fijo_prorrateado
+        
+        if not df_dia.empty:
+            ingresos_efectivo = df_dia['efectivo_real_recaudado'].sum()
+            costo_prod_total = df_dia['costo_produccion_total'].sum()
+            utilidad_bruta_dia = ingresos_efectivo - costo_prod_total
+            utilidad_neta_dia = utilidad_bruta_dia - gastos_totales_fijos_dia
+            
+            m_bruto = (utilidad_bruta_dia / ingresos_efectivo) * 100 if ingresos_efectivo > 0 else 0
+            m_neto = (utilidad_neta_dia / ingresos_efectivo) * 100 if ingresos_efectivo > 0 else 0
+            
+            st.write(f"### Resumen de Operación Financiera del Día: {dia_sel}")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Efectivo Recaudado (Ingresos)", f"${ingresos_efectivo:,.2f}")
+            c2.metric("Inversión Insumos (Materia Prima + Vasos)", f"${costo_prod_total:,.2f}")
+            c3.metric("Costos Operativos + Prorrateo Casa", f"${gastos_totales_fijos_dia:,.2f}")
+            
+            c4, c5, c6 = st.columns(3)
+            c4.metric("Utilidad Bruta", f"${utilidad_bruta_dia:,.2f}")
+            c5.markdown(
+                f"<div style='background-color:#d4edda; padding:12px; border-radius:8px; text-align:center; border: 1px solid #c3e6cb;'>"
+                f"<p style='margin:0; color:#155724; font-size:16px; font-weight:bold;'>Utilidad Neta (Tu Bolsillo)</p>"
+                f"<h2 style='margin:0; color:#155724;'>${utilidad_neta_dia:,.2f}</h2>"
+                f"</div>", 
+                unsafe_allow_html=True
+            )
+            c6.metric("Margen Neto Real", f"{m_neto:.1f}%")
+            
+            st.write("---")
+            st.subheader("Desglose detallado por producto")
+            st.dataframe(df_dia[['nombre_postre', 'cantidad_preparada', 'cantidad_sobrante', 'piezas_vendidas', 'efectivo_real_recaudado']], use_container_width=True)
+            
+            mermas_totales = df_dia['cantidad_sobrante'].sum()
+            if mermas_totales > 0:
+                st.warning(f"⚠️ Hoy regresaron {mermas_totales} piezas sobrantes de la calle. Eso disminuyó tu ganancia neta.")
