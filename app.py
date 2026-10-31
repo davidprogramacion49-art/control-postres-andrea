@@ -38,7 +38,7 @@ with tab1:
         df_cat_op = pd.DataFrame(res_cat.data)
     except Exception:
         df_cat_op = pd.DataFrame()
-    
+        
     if df_cat_op.empty:
         st.warning("⚠️ Primero debes dar de alta al menos un postre en la pestaña 'Catálogo y Recetas Promedio' para operar.")
     else:
@@ -49,15 +49,17 @@ with tab1:
                 fecha_op = st.date_input("Fecha de Operación", datetime.now(), key="fecha_op")
                 postre_sel = st.selectbox("Selecciona el Postre", df_cat_op['nombre_postre'].tolist())
                 cant_prep = st.number_input("Cantidad Total Preparada", min_value=1, step=1)
-                
                 if st.form_submit_button("Registrar Salida a Calle"):
                     supabase.table("produccion_ventas").insert({
-                        "fecha": str(fecha_op), "nombre_postre": postre_sel, 
-                        "cantidad_preparada": cant_prep, "cantidad_sobrante": 0, "efectivo_real_recaudado": 0.0
+                        "fecha": str(fecha_op),
+                        "nombre_postre": postre_sel,
+                        "cantidad_preparada": cant_prep,
+                        "cantidad_sobrante": 0,
+                        "efectivo_real_recaudado": 0.0
                     }).execute()
                     st.success(f"📦 Registradas {cant_prep} unidades de {postre_sel}.")
                     st.rerun()
-        
+                    
         with col_f2:
             st.subheader("2. Cierre de Caja y Modificaciones")
             try:
@@ -76,15 +78,14 @@ with tab1:
                         with st.form(f"form_cierre_{row['id']}"):
                             sob = st.number_input("Piezas SOBRANTES (Merma)", min_value=0, max_value=int(row['cantidad_preparada']), value=int(row['cantidad_sobrante']))
                             efec = st.number_input("Efectivo TOTAL Real Recaudado ($)", min_value=0.0, value=float(row['efectivo_real_recaudado']))
-                            
                             c_btn1, c_btn2 = st.columns(2)
                             if c_btn1.form_submit_button("💾 Guardar Cierre"):
                                 supabase.table("produccion_ventas").update({
-                                    "cantidad_sobrante": sob, "efectivo_real_recaudado": efec
+                                    "cantidad_sobrante": sob,
+                                    "efectivo_real_recaudado": efec
                                 }).eq("id", row['id']).execute()
                                 st.success("¡Guardado!")
                                 st.rerun()
-                                
                             if c_btn2.form_submit_button("🗑️ BORRAR Registro"):
                                 supabase.table("produccion_ventas").delete().eq("id", row['id']).execute()
                                 st.warning("Registro eliminado de la nube.")
@@ -101,11 +102,12 @@ with tab2:
             p_lista = st.number_input("Precio de Venta Regular ($)", min_value=0.0, value=35.0)
             c_insumos = st.number_input("Costo de Ingredientes por Vaso ($)", min_value=0.0, value=10.0)
             c_empaque = st.number_input("Costo de Desechables por Vaso ($)", min_value=0.0, value=3.0)
-            
             if st.form_submit_button("Guardar en Catálogo") and nuevo_postre:
                 supabase.table("catalogo_postres").insert({
-                    "nombre_postre": nuevo_postre, "precio_lista": p_lista,
-                    "costo_insumos_promedio": c_insumos, "costo_empaque_promedio": c_empaque
+                    "nombre_postre": nuevo_postre,
+                    "precio_lista": p_lista,
+                    "costo_insumos_promedio": c_insumos,
+                    "costo_empaque_promedio": c_empaque
                 }).execute()
                 st.success(f"¡{nuevo_postre} guardado en internet!")
                 st.rerun()
@@ -121,7 +123,6 @@ with tab2:
             df_cat['Costo Total'] = df_cat['costo_insumos_promedio'] + df_cat['costo_empaque_promedio']
             st.subheader("Tus Postres Registrados")
             st.dataframe(df_cat[['id', 'nombre_postre', 'precio_lista', 'Costo Total']], use_container_width=True)
-            
             with st.form("form_borrar_cat"):
                 id_borrar = st.number_input("Escribe el ID del postre que deseas ELIMINAR:", min_value=1, step=1)
                 if st.form_submit_button("🗑️ Eliminar del Catálogo"):
@@ -137,10 +138,12 @@ with tab3:
         concepto_inv = st.text_input("¿Qué compraste?")
         monto_inv = st.number_input("Monto Gastado ($)", min_value=0.0)
         tipo_insumo = st.selectbox("Categoría", ["Materia Prima", "Desechables", "Otros"])
-        
         if st.form_submit_button("Registrar Compra") and concepto_inv:
             supabase.table("inventario_compras").insert({
-                "fecha": str(fecha_inv), "concepto": concepto_inv, "monto_gastado": monto_inv, "tipo_insumo": tipo_insumo
+                "fecha": str(fecha_inv),
+                "concepto": concepto_inv,
+                "monto_gastado": monto_inv,
+                "tipo_insumo": tipo_insumo
             }).execute()
             st.success("Compra sincronizada con internet.")
 
@@ -152,17 +155,18 @@ with tab4:
         concepto_g = st.text_input("Concepto")
         monto_g = st.number_input("Monto ($)", min_value=0.0)
         tipo_g = st.selectbox("Tipo", ["Gasto Diario", "Sueldos", "Gasto Fijo Mensual Casa"])
-        
         if st.form_submit_button("Guardar Gasto") and concepto_g:
             supabase.table("gastos_operacion").insert({
-                "fecha": str(fecha_g), "concepto": concepto_g, "monto": monto_g, "tipo_gasto": tipo_g
+                "fecha": str(fecha_g),
+                "concepto": concepto_g,
+                "monto": monto_g,
+                "tipo_gasto": tipo_g
             }).execute()
             st.success("Gasto operativo registrado.")
 
 # --- PESTAÑA 5: TABLERO FINANCIERO CORREGIDO Y COMPLETO ---
 with tab5:
     st.header("Finanzas Líquidas en Tiempo Real")
-    
     try:
         res_v = supabase.table("produccion_ventas").select("*").execute()
         df_v = pd.DataFrame(res_v.data)
@@ -183,24 +187,25 @@ with tab5:
         
         df_m['fecha'] = pd.to_datetime(df_m['fecha']).dt.date
         fechas_disponibles = df_m['fecha'].unique()
-        
         dia_sel = st.selectbox("Selecciona la fecha a evaluar:", fechas_disponibles, key="tab5_dia")
+        
         df_dia = df_m[df_m['fecha'] == dia_sel]
         
         if not df_g.empty:
             df_g['fecha'] = pd.to_datetime(df_g['fecha']).dt.date
             gastos_dia = df_g[(df_g['fecha'] == dia_sel) & (df_g['tipo_gasto'] != "Gasto Fijo Mensual Casa")]['monto'].sum()
             gastos_mes = df_g[df_g['tipo_gasto'] == "Gasto Fijo Mensual Casa"]['monto'].sum()
-            costo_fijo_prorrateado = gastos_mes / 30 if gastos_mes > 0 else 25.0
+            costo_fijo_prorrateado = gastos_mes / 30 if gastos_mes > 0 else 0.0
         else:
             gastos_dia = 0.0
-            costo_fijo_prorrateado = 25.0
+            costo_fijo_prorrateado = 0.0
             
         gastos_totales_fijos_dia = gastos_dia + costo_fijo_prorrateado
         
         if not df_dia.empty:
             ingresos_efectivo = df_dia['efectivo_real_recaudado'].sum()
             costo_prod_total = df_dia['costo_produccion_total'].sum()
+            
             utilidad_bruta_dia = ingresos_efectivo - costo_prod_total
             utilidad_neta_dia = utilidad_bruta_dia - gastos_totales_fijos_dia
             
@@ -208,10 +213,11 @@ with tab5:
             m_neto = (utilidad_neta_dia / ingresos_efectivo) * 100 if ingresos_efectivo > 0 else 0
             
             st.write(f"### Resumen de Operación Financiera del Día: {dia_sel}")
+            
             c1, c2, c3 = st.columns(3)
             c1.metric("Efectivo Recaudado (Ingresos)", f"${ingresos_efectivo:,.2f}")
             c2.metric("Inversión Insumos (Materia Prima + Vasos)", f"${costo_prod_total:,.2f}")
-            c3.metric("Costos Operativos + Prorrateo Casa", f"${gastos_totales_fijos_dia:,.2f}")
+            c3.metric("Gastos Operativos Diarios", f"${gastos_totales_fijos_dia:,.2f}")
             
             c4, c5, c6 = st.columns(3)
             c4.metric("Utilidad Bruta", f"${utilidad_bruta_dia:,.2f}")
@@ -219,8 +225,7 @@ with tab5:
                 f"<div style='background-color:#d4edda; padding:12px; border-radius:8px; text-align:center; border: 1px solid #c3e6cb;'>"
                 f"<p style='margin:0; color:#155724; font-size:16px; font-weight:bold;'>Utilidad Neta (Tu Bolsillo)</p>"
                 f"<h2 style='margin:0; color:#155724;'>${utilidad_neta_dia:,.2f}</h2>"
-                f"</div>", 
-                unsafe_allow_html=True
+                f"</div>", unsafe_allow_html=True
             )
             c6.metric("Margen Neto Real", f"{m_neto:.1f}%")
             
