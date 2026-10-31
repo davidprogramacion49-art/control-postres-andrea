@@ -4,7 +4,7 @@ from datetime import datetime
 from supabase import create_client, Client
 
 # 1. CONFIGURACIÓN DE BASE DE DATOS EN LA NUBE (SUPABASE)
-# Vuelve a colocar tus llaves reales aquí dentro de las comillas:
+# (Asegúrate de poner aquí tus dos llaves reales de Supabase dentro de las comillas)
 SUPABASE_URL = "https://ltlqsavejphagjbjteir.supabase.co"
 SUPABASE_KEY = "sb_publishable__pvOHbpHtPZoJekPn_sRBw_NKwLzZ_j"
 
@@ -16,7 +16,7 @@ supabase: Client = conectar_supabase()
 
 # 2. CONFIGURACIÓN DE LA INTERFAZ WEB PERSONALIZADA
 st.set_page_config(page_title="Control Postres Andrea", page_icon="🍰", layout="wide")
-st.title("🧁 Control Postres Andrea")
+st.title("🧁 Control Postres Andrea (Nube)")
 st.write("Sistema en la nube para venta ambulante con control de mermas e inventario seguro.")
 
 # Gastos Fijos Diarios Base
@@ -56,9 +56,10 @@ with tab1:
                         "cantidad_preparada": cant_prep, "cantidad_sobrante": 0, "efectivo_real_recaudado": 0.0
                     }).execute()
                     st.success(f"📦 Registradas {cant_prep} unidades de {postre_sel}.")
+                    st.rerun()
         
         with col_f2:
-            st.subheader("2. Cierre de Caja (Al regresar)")
+            st.subheader("2. Cierre de Caja y Modificaciones")
             try:
                 res_v = supabase.table("produccion_ventas").select("*").execute()
                 df_actual = pd.DataFrame(res_v.data)
@@ -71,24 +72,30 @@ with tab1:
                 df_filtrado_cierre = df_actual[df_actual['fecha'] == f_sel]
                 
                 for idx, row in df_filtrado_cierre.iterrows():
-                    with st.expander(f"Editar: {row['nombre_postre']} ({row['cantidad_preparada']} pzas)"):
+                    with st.expander(f"⚙️ {row['nombre_postre']} ({row['cantidad_preparada']} pzas) - ID: {row['id']}"):
                         with st.form(f"form_cierre_{row['id']}"):
                             sob = st.number_input("Piezas SOBRANTES (Merma)", min_value=0, max_value=int(row['cantidad_preparada']), value=int(row['cantidad_sobrante']))
                             efec = st.number_input("Efectivo TOTAL Real Recaudado ($)", min_value=0.0, value=float(row['efectivo_real_recaudado']))
                             
-                            if st.form_submit_button("Actualizar Cierre"):
+                            c_btn1, c_btn2 = st.columns(2)
+                            if c_btn1.st.form_submit_button("💾 Guardar Cierre"):
                                 supabase.table("produccion_ventas").update({
                                     "cantidad_sobrante": sob, "efectivo_real_recaudado": efec
                                 }).eq("id", row['id']).execute()
-                                st.success("¡Cierre de caja guardado en la nube!")
+                                st.success("¡Guardado!")
+                                st.rerun()
+                                
+                            if c_btn2.st.form_submit_button("🗑️ BORRAR Registro"):
+                                supabase.table("produccion_ventas").delete().eq("id", row['id']).execute()
+                                st.warning("Registro eliminado de la nube.")
                                 st.rerun()
 
 # --- PESTAÑA 2: CATÁLOGO ---
 with tab2:
     st.header("Catálogo Maestro de Postres y Costos Estándar")
-    st.write("Agrega aquí tus postres con un costo estimado promedio por vaso/pieza (ingredientes + empaques como vasos o topers) y tu precio sugerido.")
     col_c1, col_c2 = st.columns(2)
     with col_c1:
+        st.subheader("Agregar Nuevo Producto")
         with st.form("form_catalogo", clear_on_submit=True):
             nuevo_postre = st.text_input("Nombre del Postre")
             p_lista = st.number_input("Precio de Venta Regular ($)", min_value=0.0, value=35.0)
@@ -102,17 +109,26 @@ with tab2:
                 }).execute()
                 st.success(f"¡{nuevo_postre} guardado en internet!")
                 st.rerun()
+                
     with col_c2:
         try:
             res_c = supabase.table("catalogo_postres").select("*").execute()
             df_cat = pd.DataFrame(res_c.data)
         except Exception:
             df_cat = pd.DataFrame()
+            
         if not df_cat.empty:
-            df_cat['Costo Total Estimado'] = df_cat['costo_insumos_promedio'] + df_cat['costo_empaque_promedio']
-            df_cat['Margen Teórico (%)'] = ((df_cat['precio_lista'] - df_cat['Costo Total Estimado']) / df_cat['precio_lista']) * 100
+            df_cat['Costo Total'] = df_cat['costo_insumos_promedio'] + df_cat['costo_empaque_promedio']
             st.subheader("Tus Postres Registrados")
-            st.dataframe(df_cat, use_container_width=True)
+            st.dataframe(df_cat[['id', 'nombre_postre', 'precio_lista', 'Costo Total']], use_container_width=True)
+            
+            # Formulario rápido para borrar postres del catálogo
+            with st.form("form_borrar_cat"):
+                id_borrar = st.number_input("Escribe el ID del postre que deseas ELIMINAR:", min_value=1, step=1)
+                if st.form_submit_button("🗑️ Eliminar del Catálogo"):
+                    supabase.table("catalogo_postres").delete().eq("id", id_borrar).execute()
+                    st.success("Producto eliminado del catálogo.")
+                    st.rerun()
 
 # --- PESTAÑA 3: COMPRAS ---
 with tab3:
@@ -123,7 +139,7 @@ with tab3:
         monto_inv = st.number_input("Monto Gastado ($)", min_value=0.0)
         tipo_insumo = st.selectbox("Categoría", ["Materia Prima", "Desechables", "Otros"])
         
-        if st.form_submit_button("Registrar Comra") and concepto_inv:
+        if st.form_submit_button("Registrar Compra") and concepto_inv:
             supabase.table("inventario_compras").insert({
                 "fecha": str(fecha_inv), "concepto": concepto_inv, "monto_gastado": monto_inv, "tipo_insumo": tipo_insumo
             }).execute()
