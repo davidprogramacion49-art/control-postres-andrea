@@ -1,4 +1,5 @@
-import pandas as pd import streamlit as st
+import streamlit as st
+import pandas as pd
 from datetime import datetime
 from supabase import create_client, Client
 
@@ -267,8 +268,8 @@ with tab2:
                 <div class="tarjeta-blanca">
                     <span style='float:right; font-size:11px; color:#9c8a77;'>ID: {row['id']}</span>
                     <b style='color:#54412d; font-size:16px;'>{row['nombre_postre']}</b><br>
-                    <span style='color:#2e7d32; font-size:13px;'>💰 Venta: ${row['precio_lista']:.2f}</span> | 
-                    <span style='color:#c62828; font-size:13px;'>📉 Costo: ${c_tot:.2f}</span>
+                    <span style='color:#2e7d32; font-size:13px;'>💰 Venta: \${row['precio_lista']:.2f}</span> | 
+                    <span style='color:#c62828; font-size:13px;'>📉 Costo: \${c_tot:.2f}</span>
                 </div>
             """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -363,22 +364,22 @@ with tab5:
             st.markdown(f"""
                 <div style='background-color:#ffffff; padding:14px; border-radius:12px; margin-bottom:8px; border-left:4px solid #4caf50;'>
                     <span style='color:#666; font-size:13px;'>💰 Ventas Totales Recaudadas</span><br>
-                    <strong style='font-size:22px; color:#1b5e20;'>${ingresos_efectivo:,.2f}</strong>
+                    <strong style='font-size:22px; color:#1b5e20;'>\${ingresos_efectivo:,.2f}</strong>
                 </div>
                 <div style='background-color:#ffffff; padding:14px; border-radius:12px; margin-bottom:8px; border-left:4px solid #e53935;'>
-                    <span style='color:#666; font-size:13px;'>📉 Inversión en Producción</span><br>
-                    <strong style='font-size:20px; color:#b71c1c;'>${costo_prod_total:,.2f}</strong>
+                    <span style='color:#666; font-size:13px;'>📉 Inversión en Production</span><br>
+                    <strong style='font-size:20px; color:#b71c1c;'>\${costo_prod_total:,.2f}</strong>
                 </div>
                 <div style='background-color:#ffffff; padding:14px; border-radius:12px; margin-bottom:12px; border-left:4px solid #ffb300;'>
                     <span style='color:#666; font-size:13px;'>🚌 Costos y Gastos Extra del Día</span><br>
-                    <strong style='font-size:20px; color:#f57f17;'>${gastos_totales_fijos_dia:,.2f}</strong>
+                    <strong style='font-size:20px; color:#f57f17;'>\${gastos_totales_fijos_dia:,.2f}</strong>
                 </div>
             """, unsafe_allow_html=True)
             
             st.markdown(
                 f"<div style='background-color:#e8f5e9; padding:16px; border-radius:16px; text-align:center; border: 2px solid #a5d6a7; margin-bottom:15px;'>"
                 f"<p style='margin:0; color:#2e7d32; font-size:14px; font-weight:bold;'>💵 Ganancia Neta Real (Tu Bolsillo)</p>"
-                f"<h1 style='margin:4px 0; color:#1b5e20; font-size:34px;'>${utilidad_neta_dia:,.2f}</h1>"
+                f"<h1 style='margin:4px 0; color:#1b5e20; font-size:34px;'>\${utilidad_neta_dia:,.2f}</h1>"
                 f"<p style='margin:0; font-size:12px; color:#388e3c;'>Eficiencia del Margen Neto: {m_neto:.1f}%</p>"
                 f"</div>", unsafe_allow_html=True
             )
@@ -389,8 +390,7 @@ with tab5:
                     <div class="tarjeta-blanca">
                         <b style='color:#2e7d32;'>{row['nombre_postre']}</b><br>
                         <span style='font-size:13px; color:#555;'>Fabricado: {row['cantidad_preparada']} u. | Merma: {row['cantidad_sobrante']} u.</span><br>
-                        <span style='font-size:13px; font-weight:bold; color:#155724;'>Entregado en Caja: ${row['efectivo_real_recaudado']:.2f}</span>
+                        <span style='font-size:13px; font-weight:bold; color:#155724;'>Entregado en Caja: \${row['efectivo_real_recaudado']:.2f}</span>
                     </div>
                 """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
