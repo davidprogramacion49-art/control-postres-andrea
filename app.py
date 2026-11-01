@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import io
 from supabase import create_client, Client
 
 # 1. CONFIGURACIÓN DE BASE DE DATOS EN LA NUBE (SUPABASE)
@@ -16,23 +17,10 @@ supabase: Client = conectar_supabase()
 # 2. CONFIGURACIÓN DE LA INTERFAZ WEB (OPTIMIZADA PARA MÓVIL)
 st.set_page_config(page_title="Postres Andrea", page_icon="🍰", layout="centered")
 
-# --- PARCHE DE CONTROL INVISIBLE: ELIMINA LA BARRA SUPERIOR Y CORRIGE EL DISEÑO MÓVIL ---
+# --- ESTILOS CSS GENERALES Y DISEÑO DE BOTONES TÁCTILES ---
 st.markdown("""
     <style>
-    /* Ocultar barra superior de Streamlit (Fork, GitHub y menú de 3 puntos bugeado) */
-    header, [data-testid="stHeader"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0px !important;
-    }
-    
-    /* Forzar fondo claro permanente para evitar errores de modo oscuro del celular */
-    .stApp, [data-testid="stAppViewContainer"] {
-        background-color: #faf6f0 !important;
-    }
-    
-    /* Tipografía global limpia */
-    h1, h2, h3, h4, p, span, label, div {
+    h1, h2, h3, h4, p, span, label {
         font-family: 'Segoe UI', Roboto, Helvetica, sans-serif !important;
     }
     
@@ -40,7 +28,6 @@ st.markdown("""
         text-align: center; 
         color: #4a3728; 
         font-weight: 800; 
-        margin-top: 15px;
         margin-bottom: 0px;
         font-size: 28px;
     }
@@ -48,10 +35,9 @@ st.markdown("""
         text-align: center; 
         color: #8c7a6b; 
         font-size: 13px; 
-        margin-bottom: 15px;
+        margin-bottom: 10px;
     }
 
-    /* Botones adaptables y grandes para el dedo en celular */
     div.stButton > button:first-child {
         color: #4a3728 !important;
         font-weight: bold !important;
@@ -67,7 +53,6 @@ st.markdown("""
         transform: scale(0.97);
     }
     
-    /* Configuración de pestañas en móvil */
     .stTabs [data-baseweb="tab-list"] {
         gap: 6px;
         overflow-x: auto;
@@ -83,7 +68,6 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
     }
     
-    /* Estilos de los contenedores por sección */
     .seccion-container {
         padding: 20px;
         border-radius: 20px;
@@ -92,7 +76,6 @@ st.markdown("""
         border: 1px solid rgba(0,0,0,0.02);
     }
     
-    /* Tarjetas internas para datos */
     .tarjeta-blanca {
         background-color: #ffffff;
         padding: 14px;
@@ -104,13 +87,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado Principal Limpio
-st.markdown("<div class='main-title'>🍰 Postres Andrea</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-title'>Gestión Comercial Móvil Avanzada</div>", unsafe_allow_html=True)
-
-# --- PANEL EXCLUSIVO DE CONTROL MÓVIL REPARADO ---
-with st.expander("⚙️ Panel Administrativo Especial"):
-    st.markdown("### 📄 Generar Informe Diario")
+# --- MENÚ DE HERRAMIENTAS / TRES PUNTOS EN LA PARTE SUPERIOR ---
+with st.expander("⚙️ Menú de Herramientas (Reportes y Limpieza)"):
+    st.markdown("### 📊 Exportar Datos del Día")
     
     try:
         res_v_ticket = supabase.table("produccion_ventas").select("*").execute()
@@ -121,52 +100,57 @@ with st.expander("⚙️ Panel Administrativo Especial"):
     if not df_ticket_base.empty:
         df_ticket_base['fecha'] = pd.to_datetime(df_ticket_base['fecha']).dt.date
         fechas_ticket = df_ticket_base['fecha'].unique()
-        fecha_rep = st.selectbox("Elige la fecha para exportar:", fechas_ticket, key="fecha_rep")
+        fecha_rep = st.selectbox("Elige la fecha para el ticket:", fechas_ticket, key="fecha_rep")
         
         df_dia_t = df_ticket_base[df_ticket_base['fecha'] == fecha_rep]
-        ticket_texto = f"================================\n"
-        ticket_texto += f"       POSTRES ANDREA           \n"
-        ticket_texto += f"   REPORTES DESDE EL CELULAR    \n"
-        ticket_texto += f"================================\n"
-        ticket_texto += f"Fecha Evaluada: {fecha_rep}\n"
-        ticket_texto += f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
-        ticket_texto += f"--------------------------------\n"
+        ticket_texto = f"================================"
+        ticket_texto += f"       POSTRES ANDREA           "
+        ticket_texto += f"   TICKET DE REFERENCIA DIARIA   "
+        ticket_texto += f"================================"
+        ticket_texto += f"Fecha: {fecha_rep}"
+        ticket_texto += f"Generado el: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        ticket_texto += f"--------------------------------"
         
         total_efectivo = 0.0
         for _, r in df_dia_t.iterrows():
-            ticket_texto += f"- {r['nombre_postre']}:\n"
-            ticket_texto += f"  Preparados: {r['cantidad_preparada']} | Sobrantes: {r['cantidad_sobrante']}\n"
-            ticket_texto += f"  Efectivo Caja: ${r['efectivo_real_recaudado']:.2f}\n"
+            ticket_texto += f"- {r['nombre_postre']}:"
+            ticket_texto += f"  Prep: {r['cantidad_preparada']} | Sobró: {r['cantidad_sobrante']}"
+            ticket_texto += f"  Recaudado: ${r['efectivo_real_recaudado']:.2f}"
             total_efectivo += float(r['efectivo_real_recaudado'])
             
-        ticket_texto += f"--------------------------------\n"
-        ticket_texto += f"TOTAL EFECTIVO RECAUDADO: ${total_efectivo:.2f}\n"
-        ticket_texto += f"================================\n"
+        ticket_texto += f"--------------------------------"
+        ticket_texto += f"TOTAL RECAUDADO DE HOY: ${total_efectivo:.2f}"
+        ticket_texto += f"================================"
+        ticket_texto += f"¡Gracias por un gran día de trabajo!"
         
         st.download_button(
-            label="📥 Bajar Reporte de Caja (.TXT)",
+            label="📄 Descargar Ticket (.TXT)",
             data=ticket_texto,
-            file_name=f"informe_{fecha_rep}.txt",
+            file_name=f"ticket_{fecha_rep}.txt",
             mime="text/plain"
         )
     else:
-        st.info("No hay datos cargados aún.")
+        st.info("No hay transacciones registradas para generar tickets.")
 
     st.markdown("---")
-    st.markdown("### 🚨 Limpieza General de Temporada")
-    st.write("Usa esta casilla únicamente si deseas reiniciar el historial de ventas, gastos y compras de la nube.")
+    st.markdown("### 🚨 Zona de Peligro")
+    st.write("Presiona el botón de abajo para vaciar por completo el historial de ventas, gastos y compras de la nube.")
     
-    seguridad_borrado = st.checkbox("Entiendo que esto vaciará los movimientos acumulados.")
-    if seguridad_borrado:
-        if st.button("🗑️ VACIAR BASE DE DATOS OPERATIVA"):
+    confirmacion = st.checkbox("Sí, estoy segura de que quiero borrar TODOS los movimientos de la app.")
+    if confirmacion:
+        if st.button("🗑️ ELIMINAR TODO EL HISTORIAL"):
             try:
                 supabase.table("produccion_ventas").delete().gt("id", 0).execute()
                 supabase.table("inventario_compras").delete().gt("id", 0).execute()
                 supabase.table("gastos_operacion").delete().gt("id", 0).execute()
-                st.success("💥 Historial operativo vaciado con éxito.")
+                st.success("💥 Todo el historial operativo ha sido borrado de la nube con éxito.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error al borrar los datos: {e}")
+
+# Encabezado Principal
+st.markdown("<div class='main-title'>🍰 Postres Andrea</div>", unsafe_allow_html=True)
+st.markdown("<div class='sub-title'>Gestión Comercial Móvil Avanzada</div>", unsafe_allow_html=True)
 
 # Inicializar Tabs con nombres cortos
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -268,8 +252,8 @@ with tab2:
                 <div class="tarjeta-blanca">
                     <span style='float:right; font-size:11px; color:#9c8a77;'>ID: {row['id']}</span>
                     <b style='color:#54412d; font-size:16px;'>{row['nombre_postre']}</b><br>
-                    <span style='color:#2e7d32; font-size:13px;'>💰 Venta: \${row['precio_lista']:.2f}</span> | 
-                    <span style='color:#c62828; font-size:13px;'>📉 Costo: \${c_tot:.2f}</span>
+                    <span style='color:#2e7d32; font-size:13px;'>💰 Venta: ${row['precio_lista']:.2f}</span> | 
+                    <span style='color:#c62828; font-size:13px;'>📉 Costo: ${c_tot:.2f}</span>
                 </div>
             """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -364,22 +348,22 @@ with tab5:
             st.markdown(f"""
                 <div style='background-color:#ffffff; padding:14px; border-radius:12px; margin-bottom:8px; border-left:4px solid #4caf50;'>
                     <span style='color:#666; font-size:13px;'>💰 Ventas Totales Recaudadas</span><br>
-                    <strong style='font-size:22px; color:#1b5e20;'>\${ingresos_efectivo:,.2f}</strong>
+                    <strong style='font-size:22px; color:#1b5e20;'>${ingresos_efectivo:,.2f}</strong>
                 </div>
                 <div style='background-color:#ffffff; padding:14px; border-radius:12px; margin-bottom:8px; border-left:4px solid #e53935;'>
-                    <span style='color:#666; font-size:13px;'>📉 Inversión en Production</span><br>
-                    <strong style='font-size:20px; color:#b71c1c;'>\${costo_prod_total:,.2f}</strong>
+                    <span style='color:#666; font-size:13px;'>📉 Inversión en Producción</span><br>
+                    <strong style='font-size:20px; color:#b71c1c;'>${costo_prod_total:,.2f}</strong>
                 </div>
                 <div style='background-color:#ffffff; padding:14px; border-radius:12px; margin-bottom:12px; border-left:4px solid #ffb300;'>
                     <span style='color:#666; font-size:13px;'>🚌 Costos y Gastos Extra del Día</span><br>
-                    <strong style='font-size:20px; color:#f57f17;'>\${gastos_totales_fijos_dia:,.2f}</strong>
+                    <strong style='font-size:20px; color:#f57f17;'>${gastos_totales_fijos_dia:,.2f}</strong>
                 </div>
             """, unsafe_allow_html=True)
             
             st.markdown(
                 f"<div style='background-color:#e8f5e9; padding:16px; border-radius:16px; text-align:center; border: 2px solid #a5d6a7; margin-bottom:15px;'>"
                 f"<p style='margin:0; color:#2e7d32; font-size:14px; font-weight:bold;'>💵 Ganancia Neta Real (Tu Bolsillo)</p>"
-                f"<h1 style='margin:4px 0; color:#1b5e20; font-size:34px;'>\${utilidad_neta_dia:,.2f}</h1>"
+                f"<h1 style='margin:4px 0; color:#1b5e20; font-size:34px;'>${utilidad_neta_dia:,.2f}</h1>"
                 f"<p style='margin:0; font-size:12px; color:#388e3c;'>Eficiencia del Margen Neto: {m_neto:.1f}%</p>"
                 f"</div>", unsafe_allow_html=True
             )
@@ -390,7 +374,7 @@ with tab5:
                     <div class="tarjeta-blanca">
                         <b style='color:#2e7d32;'>{row['nombre_postre']}</b><br>
                         <span style='font-size:13px; color:#555;'>Fabricado: {row['cantidad_preparada']} u. | Merma: {row['cantidad_sobrante']} u.</span><br>
-                        <span style='font-size:13px; font-weight:bold; color:#155724;'>Entregado en Caja: \${row['efectivo_real_recaudado']:.2f}</span>
+                        <span style='font-size:13px; font-weight:bold; color:#155724;'>Entregado en Caja: ${row['efectivo_real_recaudado']:.2f}</span>
                     </div>
                 """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
